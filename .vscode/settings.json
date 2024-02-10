@@ -44,5 +44,9 @@
 		"editor.rulers": [80],
 		"editor.defaultFormatter": "esbenp.prettier-vscode",
 		"editor.formatOnSave": true
-	}
+	},
+	"dreammaker.autoUpdate": true,
+	"dreammaker.byondPath": [
+		"C:\\Program Files (x86)\\BYOND\\bin"
+	]
 }

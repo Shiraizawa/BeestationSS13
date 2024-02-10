@@ -18,12 +18,15 @@
 	var/fear_state = PHOBIA_STATE_CALM
 	var/stress_check = 0
 	var/last_scare = 0
+	var/faint_length = 0
+	var/cooldown_length = 0 //Grace period between faints caused by high fearscore
 	var/list/trigger_words
 	//instead of cycling every atom, only cycle the relevant types
 	var/list/trigger_mobs
 	var/list/trigger_objs //also checked in mob equipment
 	var/list/trigger_turfs
 	var/list/trigger_species
+	COOLDOWN_DECLARE(timer)
 
 /datum/brain_trauma/mild/phobia/New(new_phobia_type)
 	if(new_phobia_type)
@@ -32,6 +35,8 @@
 	if(!phobia_type)
 		phobia_type = pick_weight(SStraumas.phobia_types)
 
+	faint_length=300
+	cooldown_length=faint_length*2  //Has to be at least faint_length, else it practically doesnt do anything
 	gain_text = "<span class='warning'>You start finding [phobia_type] very unnerving...</span>"
 	lose_text = "<span class='notice'>You no longer feel afraid of [phobia_type].</span>"
 	scan_desc += " of [phobia_type]"
@@ -162,13 +167,16 @@
 			if(fear_state <= PHOBIA_STATE_TERROR)
 				fear_state = PHOBIA_STATE_FAINT
 				owner.remove_movespeed_modifier(MOVESPEED_ID_PHOBIA, TRUE) //in the case that we get so scared by enough bullshit nearby we skip the last stage
-				fearscore = 9
-				owner.visible_message("<span class ='danger'>[owner] faints in fear!</span>", "<span class ='userdanger'>It's too much! You faint!</span>")
-				owner.Sleeping(300)
-				if(prob(stress * 3))
-					owner.set_heartattack(TRUE)
-					to_chat(owner, "<span class='userdanger'>Your heart stops!</span>")
-				stress++
+				if(!timer || COOLDOWN_FINISHED(src, timer))
+					owner.Sleeping(faint_length)
+					owner.visible_message("<span class ='danger'>[owner] faints in fear!</span>", "<span class ='userdanger'>It's too much! You faint!</span>")
+					fear_state = PHOBIA_STATE_EDGY
+					fearscore = 9
+					stress++
+					if(prob(stress))
+						owner.set_heartattack(TRUE)
+						to_chat(owner, "<span class='userdanger'>Your heart stops!</span>")
+
 
 
 
@@ -245,10 +253,12 @@
 			owner.Jitter(3)
 		if(PHOBIA_STATE_FAINT)
 			if(!owner.stat)
-				if(fearscore>=36)  //Checks for fearscore so you wont be instantly fainting right after waking up from a faint and seeing the reason again
-					owner.Sleeping(300)
-					fear_state = PHOBIA_STATE_FIGHTORFLIGHT
+				if(timer && COOLDOWN_FINISHED(src, timer))  //Checks for fearscore so you wont be instantly fainting right after waking up from a faint and seeing the reason again
+					owner.Sleeping(faint_length)
+					owner.visible_message("<span class ='danger'>[owner] faints in fear!</span>", "<span class ='userdanger'>It's too much! You faint!</span>")
+					fear_state = PHOBIA_STATE_EDGY
 					fearscore = 9
+					stress++
 
 
 /datum/brain_trauma/mild/phobia/on_lose()
