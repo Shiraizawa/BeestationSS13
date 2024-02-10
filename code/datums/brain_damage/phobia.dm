@@ -45,6 +45,7 @@
 	trigger_objs = SStraumas.phobia_objs[phobia_type]
 	trigger_turfs = SStraumas.phobia_turfs[phobia_type]
 	trigger_species = SStraumas.phobia_species[phobia_type]
+	fear_state = PHOBIA_STATE_CALM
 	..()
 
 
@@ -113,7 +114,7 @@
 			if(fear_state >= PHOBIA_STATE_UNEASY)
 				fear_state = PHOBIA_STATE_EDGY
 				owner.remove_movespeed_modifier(MOVESPEED_ID_PHOBIA, TRUE)
-				to_chat(owner, "<span class ='notice'>you manage to calm down a little.</span>")
+				to_chat(owner, "<span class ='notice'>You manage to calm down a little.</span>")
 			if(fear_state == PHOBIA_STATE_CALM)
 				fear_state = PHOBIA_STATE_EDGY
 				if(prob(stress * 5))
@@ -158,7 +159,6 @@
 				fear_state = PHOBIA_STATE_TERROR
 				owner.remove_movespeed_modifier(MOVESPEED_ID_PHOBIA, TRUE)
 				owner.visible_message("<span class ='danger'>[owner] collapses into a fetal position and cowers in fear!</span>", "<span class ='userdanger'>I'm done for...</span>")
-				owner.Paralyze(80)
 				owner.Jitter(8)
 				stress++
 				if(prob(stress * 5))
@@ -168,15 +168,18 @@
 				fear_state = PHOBIA_STATE_FAINT
 				owner.remove_movespeed_modifier(MOVESPEED_ID_PHOBIA, TRUE) //in the case that we get so scared by enough bullshit nearby we skip the last stage
 				if(!timer || COOLDOWN_FINISHED(src, timer))
-					owner.Sleeping(faint_length)
+					COOLDOWN_START(src, timer, cooldown_length)
 					owner.visible_message("<span class ='danger'>[owner] faints in fear!</span>", "<span class ='userdanger'>It's too much! You faint!</span>")
+					owner.Sleeping(faint_length)
 					fear_state = PHOBIA_STATE_EDGY
 					fearscore = 9
 					stress++
 					if(prob(stress))
 						owner.set_heartattack(TRUE)
 						to_chat(owner, "<span class='userdanger'>Your heart stops!</span>")
-
+				if(timer && !COOLDOWN_FINISHED(src, timer))
+					owner.visible_message("<span class ='danger'>[owner] looks ghostly pale, trembling uncontrollably!</span>", "<span class ='userdanger'>This is HELL! OUT!! NOW!!!</span>")
+					owner.Jitter(10)
 
 
 
@@ -210,7 +213,7 @@
 	if(owner.stat >= UNCONSCIOUS)
 		return
 	if(fear_state >= PHOBIA_STATE_EDGY)
-		stress_check = world.time + 3000
+		stress_check = world.time + 3000  //Stress begins to fall after 5 minutes only
 		last_scare = world.time + 100
 	if(reason)
 		if(isliving(reason))
@@ -253,9 +256,10 @@
 			owner.Jitter(3)
 		if(PHOBIA_STATE_FAINT)
 			if(!owner.stat)
-				if(timer && COOLDOWN_FINISHED(src, timer))  //Checks for fearscore so you wont be instantly fainting right after waking up from a faint and seeing the reason again
-					owner.Sleeping(faint_length)
+				if(!timer || (timer && COOLDOWN_FINISHED(src, timer)))  //If fainting hasnt happened yet, the cooldown timer never havve been created, so we check for that too
+					COOLDOWN_START(src, timer, cooldown_length)
 					owner.visible_message("<span class ='danger'>[owner] faints in fear!</span>", "<span class ='userdanger'>It's too much! You faint!</span>")
+					owner.Sleeping(faint_length)
 					fear_state = PHOBIA_STATE_EDGY
 					fearscore = 9
 					stress++
